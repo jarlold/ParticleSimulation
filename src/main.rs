@@ -19,11 +19,9 @@ fn main() {
     window.set_light(Light::StickToCamera);
 
     // Then we'll make a particle simulation
-    let mut simulation = particle_sim::ParticleSim::new(2000);
+    let mut simulation = particle_sim::ParticleSim::new(10000);
 
     window.set_background_color(1.0, 1.0, 1.0);
-
-    window.set_point_size(100.0);
 
     // Main draw loop
     while !window.should_close() {

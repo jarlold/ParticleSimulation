@@ -1,5 +1,6 @@
 use rand::Rng;
 use kiss3d::window::Window;
+use std::collections::VecDeque;
 extern crate nalgebra as na;
 
 pub struct Particle {
@@ -68,11 +69,16 @@ impl ParticleSim {
 
         // We'll store the indices of all the points in this stack, so that we don't iterate through
         // the same points multiple times (once they're allocated to a partition we'll stop checking them).
-        let mut stack: Vec<usize> = (0..= self.particles.len()-1).rev().collect();
+        //let mut stack: Vec<usize> = (0..= self.particles.len()-1).rev().collect();
+        let mut queue: VecDeque<usize> = (0..= self.particles.len()-1).rev().collect();
 
         // It's a little esoteric but we're using modulos operator to iterate throuh 3 dimensions in our
         // 1-dimensional vector because Rust's multi-dimensional vectors are pretty slow.
+        let mut escape_flag = false;
         for i in 0..partitions.len() {
+            // If we run out of particles, this will let us leave early
+            if escape_flag { break; }
+
             // We'll disinteangle our X, Y, Z from the index
             let x: usize = i / (self.num_cells_per_axis*self.num_cells_per_axis);
             let y: usize = (i / self.num_cells_per_axis) % self.num_cells_per_axis;
@@ -80,11 +86,19 @@ impl ParticleSim {
            
             // To prevent re-counting the length each time we'll
             // store it and subtract it ourselves.
-            let mut l = stack.len();
+            let mut l = queue.len();
             let mut j = 0;
 
             while j < l {
-                let index = stack[j];
+                // Since usize can't be negative we'll use number of particles + 1 as our
+                // flag for "no more particles in the queue"
+                let index: usize = queue.pop_front().unwrap_or(self.particles.len()+1);
+
+                // If we see it, we'll set this other flag that'll let us break the for 
+                // loop early.
+                if index > self.particles.len() {
+                    escape_flag = true;
+                }
 
                 // Check if the point is in the cells hitbox
                 let inside = point_in_cube(
@@ -97,15 +111,14 @@ impl ParticleSim {
                     self.particles[index].pos.coords.z,
                 );
 
-                // If it is, add it to the cell's partition,
-                // then take it out of the stack of particle ID's
-                // we're sorting.
+                // If it's inside the bounding box, add it to the partition
                 if inside {
                     partitions[i].push(index);
-                    stack.remove(j);
                     l -= 1;
                 } else {
+                    // Otherwise drop him back into the queue
                     j += 1;
+                    queue.push_back(index);
                 }
 
             }
@@ -113,14 +126,14 @@ impl ParticleSim {
 
         // Then we'll find any particles that left the cells, and bounce them back into
         // the cells.
-        for i in 0 .. stack.len() {
+        for i in 0 .. queue.len() {
             // Invert their velocity
-            self.particles[stack[i]].vel *= -0.2;
+            self.particles[queue[i]].vel *= -0.2;
 
             // Then since they're out-of-bounds we'll give them 5 free tick to get back into
             // bounds. (That's 5 because we're bouncing him back with 1/5th the velocity).
-            let d = self.particles[stack[i]].vel.coords;
-            self.particles[stack[i]].pos += d * self.time_step*5.0;
+            let d = self.particles[queue[i]].vel.coords;
+            self.particles[queue[i]].pos += d * self.time_step*5.0;
         }
 
         return partitions;
@@ -222,7 +235,7 @@ fn global_gravity(p: &Particle, centroid_pos : na::Vector3<f32>, centroid_mass: 
     let r2: f32 = (p.pos.coords - centroid_pos).magnitude().powf(3.0);
     let f = 1.0 / (r2 * (1.0/centroid_mass));
     let force = (p.pos.coords - centroid_pos) * f;
-    return -force*(1.0/p.inverse_mass)*(10.0)*dt;
+    return -force*(1.0/p.inverse_mass)*(20.0)*dt;
 }
 
 fn deserialize_partition_index(i: usize, num_cells_per_axis: usize) -> (usize, usize, usize) {
