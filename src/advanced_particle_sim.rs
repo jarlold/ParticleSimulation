@@ -54,8 +54,8 @@ impl ParticleSim {
                     if i == k { continue; }
 
                     fnet += newtonian_gravity(
-                        1.0,
-                        1.0,
+                        1.0/pp.inverse_mass,
+                        masses[k],
                         pp.pos.coords,
                         centroids[k]
                     );
@@ -151,7 +151,7 @@ impl ParticleSim {
         // Make a new particle simulation
         let mut p = ParticleSim {
             particles: Vec::new(),
-            time_step: 0.01,
+            time_step: 0.001,
             partition_edge_len: 10.0,
             num_cells_per_axis: 10,
         };
@@ -166,6 +166,7 @@ impl ParticleSim {
     }
 
     pub fn draw_partitions(&mut self, window: &mut Window) {
+        // Draw the blue "cage" that surrounds the simulation
         let edge_len = (self.num_cells_per_axis as f32) * self.partition_edge_len;
         window.draw_line(
             &na::Point3::new(0.0, 0.0, 0.0),
@@ -189,6 +190,23 @@ impl ParticleSim {
             &na::Point3::new(0.0, 0.0, 0.0),
             &na::Point3::new(0.0, 0.0, 0.5),
         );
+
+        // Draw the cell divisions on the floor 
+        // We're iterating self.num_cells_per_axis times more than we need to here but that's ok
+        for i in 0 .. self.num_cells_per_axis*self.num_cells_per_axis*self.num_cells_per_axis {
+            let (x, _y, z) = deserialize_partition_index(i, self.num_cells_per_axis);
+            window.draw_line(
+                &na::Point3::new(x as f32*self.partition_edge_len, 0.0, z as f32*self.partition_edge_len),
+                &na::Point3::new((x+1) as f32*self.partition_edge_len, 0.0, (z+0) as f32*self.partition_edge_len),
+                &na::Point3::new(0.0, 0.5, 0.0),
+            );
+
+            window.draw_line(
+                &na::Point3::new(x as f32*self.partition_edge_len, 0.0, z as f32*self.partition_edge_len),
+                &na::Point3::new((x+0) as f32*self.partition_edge_len, 0.0, (z+1) as f32*self.partition_edge_len),
+                &na::Point3::new(0.0, 0.5, 0.0),
+            );
+        }
     }
 }
 
@@ -204,14 +222,15 @@ pub fn random_particle() -> Particle {
 
     const POS_RANGE : std::ops::Range<f32> = 0.0 .. 100.0;
 
+    let m = 1.0/rng.random_range(1.0 .. 10.0);
     let p1 = na::Point3::new(rng.random_range(POS_RANGE), rng.random_range(POS_RANGE), rng.random_range(POS_RANGE));
     let p2 = na::Point3::new(rng.random(), rng.random(), rng.random());
-    let p3 = na::Point3::new(rng.random(), rng.random(), rng.random());
+    let p3 = na::Point3::new(m, 0.2, 0.2);
 
     Particle {
         pos: p1,
         vel: p2*10.0,
-        inverse_mass: 1.0/rng.random_range(1.0 .. 10.0),
+        inverse_mass: m,
         color: p3
     }
 }

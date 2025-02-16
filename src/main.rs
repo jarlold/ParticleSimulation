@@ -5,7 +5,7 @@ use kiss3d::camera::ArcBall;
 use kiss3d::light::Light;
 use kiss3d::window::Window;
 use na::Point3;
-mod particle_sim;
+mod advanced_particle_sim;
 
 fn main() {
     // Setup the window
@@ -19,7 +19,7 @@ fn main() {
     window.set_light(Light::StickToCamera);
 
     // Then we'll make a particle simulation
-    let mut simulation = particle_sim::ParticleSim::new(10000);
+    let mut simulation = advanced_particle_sim::ParticleSim::new(3000);
 
     window.set_background_color(1.0, 1.0, 1.0);
 
