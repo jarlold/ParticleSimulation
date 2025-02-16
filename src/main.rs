@@ -9,7 +9,7 @@ mod advanced_particle_sim;
 
 fn main() {
     // Setup the window
-    let mut window = Window::new("Kiss3d: camera");
+    let mut window = Window::new("Particle Fun");
 
     // Setup the camera
     let eye = Point3::new(200.0f32, 200.0, 200.0);
@@ -19,9 +19,13 @@ fn main() {
     window.set_light(Light::StickToCamera);
 
     // Then we'll make a particle simulation
-    let mut simulation = advanced_particle_sim::ParticleSim::new(3000);
+    let mut simulation = advanced_particle_sim::ParticleSim::new(5000);
 
     window.set_background_color(1.0, 1.0, 1.0);
+
+    let sim_boundary_length = simulation.num_cells_per_axis as f32 * simulation.partition_edge_len;
+
+    let sim_middle = na::Vector3::new(sim_boundary_length/2.0, sim_boundary_length/2.0, sim_boundary_length/2.0);
 
     // Main draw loop
     while !window.should_close() {
@@ -36,23 +40,23 @@ fn main() {
         // Draw a compass so I don't get lost
         // Draw x-axis
         window.draw_line(
-            &Point3::new(0.0, 0.0, 0.0),
-            &Point3::new(1.0, 0.0, 0.0),
+            &(Point3::new(0.0, 0.0, 0.0) + sim_middle),
+            &(Point3::new(simulation.partition_edge_len, 0.0, 0.0) + sim_middle),
             &Point3::new(1.0, 0.0, 0.0),
         );
 
         // Draw y-axis
         window.draw_line(
-            &Point3::new(0.0, 0.0, 0.0),
-            &Point3::new(0.0, 1.0, 0.0),
+            &(Point3::new(0.0, 0.0, 0.0) + sim_middle),
+            &(Point3::new(0.0, simulation.partition_edge_len, 0.0) + sim_middle),
             &Point3::new(0.0, 1.0, 0.0),
         );
 
         // Draw z-axis
         window.draw_line(
-            &na::Point3::new(0.0, 0.0, 0.0),
-            &na::Point3::new(0.0, 0.0, 1.0),
-            &na::Point3::new(0.0, 0.0, 1.0),
+            &(Point3::new(0.0, 0.0, 0.0) + sim_middle),
+            &(Point3::new(0.0, 0.0, simulation.partition_edge_len) + sim_middle),
+            &Point3::new(0.0, 0.0, 1.0),
         );
 
         // Draw lines where the partition cells are

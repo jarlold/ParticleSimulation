@@ -13,8 +13,8 @@ pub struct Particle {
 pub struct ParticleSim {
     pub particles: Vec<Particle>,
     pub time_step: f32,
-    num_cells_per_axis: usize,
-    partition_edge_len: f32,
+    pub num_cells_per_axis: usize,
+    pub partition_edge_len: f32,
 }
 
 impl ParticleSim {
@@ -40,29 +40,27 @@ impl ParticleSim {
 
         // Then we'll use those centroids to estimate the force of gravity from
         // particles in far away cells- THIS O(# partitions^2 *# particles) BTW
-
-        // For all the particles in all the partitions
         for i in 0 .. partitions.len() {
             for j in 0 .. partitions[i].len() {
                 let pp =  &mut self.particles[partitions[i][j]];
                 // start with fnet = 0
                 let mut fnet : na::Vector3<f32> = na::Vector3::new(0.0, 0.0, 0.0);
-
-                // Then add the estimated forces at all the centroids to it
                 for k in 0 .. partitions.len() {
                     // Except for those of the current centroid of course
                     if i == k { continue; }
 
+                    // Then add the estimated forces at all the centroids to it
                     fnet += newtonian_gravity(
                         1.0/pp.inverse_mass,
                         masses[k],
                         pp.pos.coords,
                         centroids[k]
                     );
-                    
-                    let fi = fnet * pp.inverse_mass * self.time_step;
-                    pp.vel.coords -= fi;
                 }
+
+                // Finally we can multiply it by dt and add it to the velocity
+                let fi = fnet * pp.inverse_mass * self.time_step;
+                pp.vel.coords -= fi;
             }
         }
 
@@ -151,7 +149,7 @@ impl ParticleSim {
         // Make a new particle simulation
         let mut p = ParticleSim {
             particles: Vec::new(),
-            time_step: 0.001,
+            time_step: 0.01,
             partition_edge_len: 10.0,
             num_cells_per_axis: 10,
         };
@@ -220,23 +218,23 @@ fn deserialize_partition_index(i: usize, num_cells_per_axis: usize) -> (usize, u
 pub fn random_particle() -> Particle {
     let mut rng = rand::rng();
 
-    const POS_RANGE : std::ops::Range<f32> = 0.0 .. 100.0;
+    const POS_RANGE : std::ops::Range<f32> = 0.0 .. 99.0;
 
     let m = 1.0/rng.random_range(1.0 .. 10.0);
     let p1 = na::Point3::new(rng.random_range(POS_RANGE), rng.random_range(POS_RANGE), rng.random_range(POS_RANGE));
     let p2 = na::Point3::new(rng.random(), rng.random(), rng.random());
-    let p3 = na::Point3::new(m, 0.2, 0.2);
+    let p3 = na::Point3::new(m, 0.0, 0.0);
 
     Particle {
         pos: p1,
-        vel: p2*10.0,
+        vel: p2*100.0,
         inverse_mass: m,
         color: p3
     }
 }
 
 fn newtonian_gravity(m1: f32, m2: f32, p1: na::Vector3<f32>, p2: na::Vector3<f32>) -> na::Vector3<f32> {
-    return (m1*m2)/( (p1 - p2).magnitude().powf(2.0) ) * (p1 - p2);
+    return (0.0001)*(m1*m2)/( (p1 - p2).magnitude().powf(2.0) ) * (p1 - p2);
 }
 
 fn point_in_cube(edge_len: f32, offx:f32, offy:f32, offz:f32, px:f32, py:f32, pz:f32) -> bool {
