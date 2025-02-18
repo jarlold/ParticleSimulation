@@ -64,6 +64,22 @@ impl ParticleSim {
             }
         }
 
+        // Then we'll calculate realistic interactions for particles in adjacent cells
+        // TODO: Merge relevant cells into SUPER CELLS so that neighboring cells affect one another
+        for i in 0 .. partitions.len() {
+            for j in 0 .. partitions[i].len() {
+                let mut fnet = na::Vector3::new(0.0, 0.0, 0.0);
+                let mut p1 = &self.particles[partitions[i][j]];
+                for k in 0 .. partitions[i].len() {
+                    if j == k { continue; }
+                    let p2 = &self.particles[partitions[i][k]];
+                    fnet += newtonian_gravity(1.0/p1.inverse_mass, 1.0/p2.inverse_mass, p1.pos.coords, p2.pos.coords);
+                }
+                fnet *= p1.inverse_mass * self.time_step;
+                self.particles[ partitions[i][j] ].pos.coords += fnet;
+            }
+        }
+
         // Then we can actually update their positions...
         for i in 0 .. self.particles.len() {
             let local_so_rust_shuts_up = self.particles[i].vel.coords;
@@ -215,6 +231,11 @@ fn deserialize_partition_index(i: usize, num_cells_per_axis: usize) -> (usize, u
     return (x, y, z);
 }
 
+fn reserialize_partition_index(x: usize, y:usize, z:usize, num_cells_per_axis:usize) -> usize {
+    let i = x * (num_cells_per_axis * num_cells_per_axis) + y * num_cells_per_axis + z;
+    return i;
+}
+
 pub fn random_particle() -> Particle {
     let mut rng = rand::rng();
 
@@ -234,7 +255,7 @@ pub fn random_particle() -> Particle {
 }
 
 fn newtonian_gravity(m1: f32, m2: f32, p1: na::Vector3<f32>, p2: na::Vector3<f32>) -> na::Vector3<f32> {
-    return (0.0001)*(m1*m2)/( (p1 - p2).magnitude().powf(2.0) ) * (p1 - p2);
+    return (0.01)*(m1*m2)/( (p1 - p2).magnitude().powf(2.0) ) * (p1 - p2);
 }
 
 fn point_in_cube(edge_len: f32, offx:f32, offy:f32, offz:f32, px:f32, py:f32, pz:f32) -> bool {
